@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+
+contract DegenToken is ERC20, Ownable, ERC20Burnable {
+
+    constructor() ERC20("Degen", "DGN") Ownable(msg.sender) {}
+
+    // Redeemable items
+    enum CardTypes {Common, Uncommon, Rare, Epic, Legendary}
+
+    struct Buyer {
+        address walletAddress;
+        uint256 tokenAmount;
+    }
+
+    // Queue of buyers for purchasing Degen tokens
+    Buyer[] public buyerQueue;
+
+    struct PlayerInventory {
+        uint256 commonCards;
+        uint256 uncommonCards;
+        uint256 rareCards;
+        uint256 epicCards;
+        uint256 legendaryCards;        
+    }
+
+    // Mapping to store the redeemed cards of each player
+    mapping (address => PlayerInventory) public playerInventories;
+
+    function addBuyerToQueue(address _walletAddress, uint256 _tokenAmount) public {
+        buyerQueue.push(Buyer({walletAddress: _walletAddress, tokenAmount: _tokenAmount}));
+    }
+
+    // Mint tokens for the buyers in the queue
+    function mintTokens() public onlyOwner {
+        // Loop to mint tokens for buyers in queue
+        while (buyerQueue.length != 0) {
+            uint256 i = buyerQueue.length - 1;
+            if (buyerQueue[i].walletAddress != address(0)) { // Check for non-zero address
+                _mint(buyerQueue[i].walletAddress, buyerQueue[i].tokenAmount);
+                buyerQueue.pop();
+            }
+        }
+    }
+    
+    // Transfer tokens to other players
+    function transferTokens(address _recipient, uint256 _amount) public {
+        require(_amount <= balanceOf(msg.sender), "Insufficient balance");
+        _transfer(msg.sender, _recipient, _amount);
+    }
+
+    // Redeem different cards
+    function redeemCard(CardTypes _cardType) public {
+        if (_cardType == CardTypes.Common) {
+            require(balanceOf(msg.sender) >= 10, "Insufficient balance");
+            playerInventories[msg.sender].commonCards += 1;
+            burn(10);
+        } else if (_cardType == CardTypes.Uncommon) {
+            require(balanceOf(msg.sender) >= 20, "Insufficient balance");
+            playerInventories[msg.sender].uncommonCards += 1;
+            burn(20);
+        } else if (_cardType == CardTypes.Rare) {
+            require(balanceOf(msg.sender) >= 30, "Insufficient balance");
+            playerInventories[msg.sender].rareCards += 1;
+            burn(30);
+        } else if (_cardType == CardTypes.Epic) {
+            require(balanceOf(msg.sender) >= 40, "Insufficient balance");
+            playerInventories[msg.sender].epicCards += 1;
+            burn(40);
+        } else if (_cardType == CardTypes.Legendary) {
+            require(balanceOf(msg.sender) >= 50, "Insufficient balance");
+            playerInventories[msg.sender].legendaryCards += 1;
+            burn(50);
+        } else {
+            revert("Invalid card type selected");
+        }
+    }
+
+    // Function to burn tokens
+    function burnTokens(address _holder, uint256 _amount) public {
+        _burn(_holder, _amount);
+    }
+
+    // Function to check the token balance
+    function checkTokenBalance() public view returns (uint256) {
+        return balanceOf(msg.sender);
+    }
+}
